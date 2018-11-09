@@ -1,4 +1,18 @@
 ---
 - hosts: all
   tasks:
-    - shell: 'echo hello > /vagrant/world.txt'
+    - name: 'Instala php ultima versao' 
+      apt:
+        name: php5
+        state: latest
+      become: yes   
+    - name: 'Instala php Apache 2' 
+      apt:
+        name: apache2
+        state: latest
+      become: yes   
+    - name: 'Instala modphp' 
+      apt:
+        name: libapache2-mod-php5
+        state: latest
+      become: yes   
