@@ -1,5 +1,13 @@
 ---
 - hosts: all
+  
+  handlers:
+    - name: restart_apache
+      service:
+        name: apache2
+        state: restarted
+      become: yes    
+
   tasks:
     - name: 'Instala pacotes de dependencia do sistema operacional'
       apt:
@@ -23,11 +31,50 @@
         login_user: root
         state: present
 
-    - name: 'Atribui permissoes ao usuario wordpress_db'
+    - name: 'Cria usuario e atribui permissoes ao usuario wordpress_db'
       mysql_user:
         login_user: root
-        name: wordpress_db
+        name: wordpress_user
         password: 12345
         priv: 'wordpress_db.*:ALL'
         state: present
+
+    - name: 'Download baixa o arquivo de instalacao do wordpress'
+      get_url:
+        url: 'https://wordpress.org/latest.tar.gz'
+        dest: '/tmp/wordpress.tar.gz'
     
+    - name: 'Descompactar o arquivo de wordpress'
+      unarchive:
+        src: '/tmp/wordpress.tar.gz'
+        dest: '/var/www/'
+        remote_src: yes
+      become: yes
+
+    - name: 'Criar arquivo wp-config.php a partir de wp-config-sample.php'
+      copy:
+        src: '/var/www/wordpress/wp-config-sample.php'
+        dest: '/var/www/wordpress/wp-config.php'
+        remote_src: yes
+      become: yes
+    
+    - name: 'Configurar o wp com as entradas do banco de dados'
+      replace:
+        path: '/var/www/wordpress/wp-config.php'
+        regexp: "{{ item.regex }}"
+        replace: "{{ item.value }}"
+        backup: yes
+      with_items:
+        - { regex: 'database_name_here', value: 'wordpress_db' }
+        - { regex: 'username_here', value: 'wordpress_user' }
+        - { regex: 'password_here', value: '12345' }
+      become: yes
+
+    - name: 'Copiar arquivo 000-default.php na maquina que roda o ansible para apache da maquina virtual'
+      copy:
+        src: './files/000-default.conf'
+        dest: '/etc/apache2/sites-available/000-default.conf'
+        remote_src: no
+      become: yes
+      notify: 
+        - restart_apache
