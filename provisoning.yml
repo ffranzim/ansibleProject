@@ -1,29 +1,22 @@
 ---
-- hosts: all
-  
+- hosts: database
+
   handlers:
-    - name: restart_apache
+    - name: restart_mysql
       service:
-        name: apache2
+        name: mysql
         state: restarted
-      become: yes    
+      become: yes  
 
   tasks:
     - name: 'Instala pacotes de dependencia do sistema operacional'
       apt:
-        name: "{{item}}"
+        name: "{{ item }}"
         state: latest
       become: yes
       with_items:
-        - php5
-        - apache2
-        - libapache2-mod-php5
-        - php5-gd
-        - libssh2-php
-        - php5-mcrypt
         - mysql-server-5.6
         - python-mysqldb
-        - php5-mysql
 
     - name: 'Cria o banco Mysql'
       mysql_db:
@@ -38,6 +31,44 @@
         password: 12345
         priv: 'wordpress_db.*:ALL'
         state: present
+        host: "{{ item }}"
+      with_items:
+        - 'localhost'
+        - '127.0.0.1'
+        - '172.17.177.40'
+
+    - name: 'Copiar arquivo my.cnf na maquina que roda o ansible para a maquina virtual do mysql'
+      copy:
+        src: './files/my.cnf'
+        dest: '/etc/mysql/my.cnf'
+        remote_src: no
+      become: yes
+      notify: 
+        - restart_mysql      
+
+- hosts: wordpress
+  
+  handlers:
+    - name: restart_apache
+      service:
+        name: apache2
+        state: restarted
+      become: yes    
+
+  tasks:
+    - name: 'Instala pacotes de dependencia do sistema operacional'
+      apt:
+        name: "{{ item }}"
+        state: latest
+      become: yes
+      with_items:
+        - php5
+        - apache2
+        - libapache2-mod-php5
+        - php5-gd
+        - libssh2-php
+        - php5-mcrypt
+        - php5-mysql
 
     - name: 'Download baixa o arquivo de instalacao do wordpress'
       get_url:
@@ -68,9 +99,10 @@
         - { regex: 'database_name_here', value: 'wordpress_db' }
         - { regex: 'username_here', value: 'wordpress_user' }
         - { regex: 'password_here', value: '12345' }
+        - { regex: 'localhost', value: '172.17.177.42' }
       become: yes
 
-    - name: 'Copiar arquivo 000-default.php na maquina que roda o ansible para apache da maquina virtual'
+    - name: 'Copiar arquivo 000-default.conf na maquina que roda o ansible para apache da maquina virtual'
       copy:
         src: './files/000-default.conf'
         dest: '/etc/apache2/sites-available/000-default.conf'
