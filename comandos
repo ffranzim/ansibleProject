@@ -1,0 +1,9 @@
+vagrant up wordpress
+vagrant up database
+vagrant ssh
+vagrant up destroy
+vagrant up halt
+
+ansible-playbook provisoning.yml -u vagrant -i hosts --private-key .vagrant/machines/wordpress/virtualbox/private_key
+ansible-playbook -i hosts provisoning.yml --extra-vars 'wp_db_name=wordpress_db wp_username=wordpress_user'
+ansible-playbook -i hosts provisoning.yml  -vvvv
